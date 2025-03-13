@@ -39,6 +39,9 @@ namespace StealthSpoof.Core
         
         // Property name constants
         private const string PROP_PROCESSOR_ID = "ProcessorId";
+        private const string PROP_SYSTEM_MANUFACTURER = "SystemManufacturer";
+        private const string PROP_SYSTEM_PRODUCT_NAME = "SystemProductName";
+        private const string PROP_BASEBOARD_PRODUCT = "BaseBoardProduct";
         
         private static readonly string BackupPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -212,16 +215,16 @@ namespace StealthSpoof.Core
                 {
                     if (key != null)
                     {
-                        object? manufacturer = key.GetValue("SystemManufacturer");
-                        object? productName = key.GetValue("SystemProductName");
-                        object? baseBoard = key.GetValue("BaseBoardProduct");
+                        object? manufacturer = key.GetValue(PROP_SYSTEM_MANUFACTURER);
+                        object? productName = key.GetValue(PROP_SYSTEM_PRODUCT_NAME);
+                        object? baseBoard = key.GetValue(PROP_BASEBOARD_PRODUCT);
                         
                         if (manufacturer != null)
-                            motherboardInfo["SystemManufacturer"] = manufacturer.ToString() ?? string.Empty;
+                            motherboardInfo[PROP_SYSTEM_MANUFACTURER] = manufacturer.ToString() ?? string.Empty;
                         if (productName != null)
-                            motherboardInfo["SystemProductName"] = productName.ToString() ?? string.Empty;
+                            motherboardInfo[PROP_SYSTEM_PRODUCT_NAME] = productName.ToString() ?? string.Empty;
                         if (baseBoard != null)
-                            motherboardInfo["BaseBoardProduct"] = baseBoard.ToString() ?? string.Empty;
+                            motherboardInfo[PROP_BASEBOARD_PRODUCT] = baseBoard.ToString() ?? string.Empty;
                     }
                 }
                 
@@ -432,9 +435,9 @@ namespace StealthSpoof.Core
                 {
                     if (key != null)
                     {
-                        key.SetValue("SystemManufacturer", "SpooferBIOS", RegistryValueKind.String);
-                        key.SetValue("SystemProductName", "StealthBoard", RegistryValueKind.String);
-                        key.SetValue("BaseBoardProduct", "SB-" + newSerialNumber, RegistryValueKind.String);
+                        key.SetValue(PROP_SYSTEM_MANUFACTURER, "SpooferBIOS", RegistryValueKind.String);
+                        key.SetValue(PROP_SYSTEM_PRODUCT_NAME, "StealthBoard", RegistryValueKind.String);
+                        key.SetValue(PROP_BASEBOARD_PRODUCT, "SB-" + newSerialNumber, RegistryValueKind.String);
                     }
                 }
                 
@@ -730,14 +733,14 @@ namespace StealthSpoof.Core
                 {
                     if (key != null)
                     {
-                        if (motherboardInfo.TryGetValue("SystemManufacturer", out var manufacturer))
-                            key.SetValue("SystemManufacturer", manufacturer?.ToString() ?? string.Empty, RegistryValueKind.String);
+                        if (motherboardInfo.TryGetValue(PROP_SYSTEM_MANUFACTURER, out var manufacturer))
+                            key.SetValue(PROP_SYSTEM_MANUFACTURER, manufacturer?.ToString() ?? string.Empty, RegistryValueKind.String);
                         
-                        if (motherboardInfo.TryGetValue("SystemProductName", out var productName))
-                            key.SetValue("SystemProductName", productName?.ToString() ?? string.Empty, RegistryValueKind.String);
+                        if (motherboardInfo.TryGetValue(PROP_SYSTEM_PRODUCT_NAME, out var productName))
+                            key.SetValue(PROP_SYSTEM_PRODUCT_NAME, productName?.ToString() ?? string.Empty, RegistryValueKind.String);
                         
-                        if (motherboardInfo.TryGetValue("BaseBoardProduct", out var baseBoard))
-                            key.SetValue("BaseBoardProduct", baseBoard?.ToString() ?? string.Empty, RegistryValueKind.String);
+                        if (motherboardInfo.TryGetValue(PROP_BASEBOARD_PRODUCT, out var baseBoard))
+                            key.SetValue(PROP_BASEBOARD_PRODUCT, baseBoard?.ToString() ?? string.Empty, RegistryValueKind.String);
                     }
                 }
                 
@@ -1046,8 +1049,8 @@ namespace StealthSpoof.Core
                 {
                     if (key != null)
                     {
-                        key.SetValue("SystemManufacturer", "StealthSpoof BIOS", RegistryValueKind.String);
-                        key.SetValue("SystemProductName", "StealthSpoof System", RegistryValueKind.String);
+                        key.SetValue(PROP_SYSTEM_MANUFACTURER, "StealthSpoof BIOS", RegistryValueKind.String);
+                        key.SetValue(PROP_SYSTEM_PRODUCT_NAME, "StealthSpoof System", RegistryValueKind.String);
                         key.SetValue("SystemFamily", "StealthSpoof Family", RegistryValueKind.String);
                         key.SetValue("SystemVersion", "1.0", RegistryValueKind.String);
                         key.SetValue("SystemSKU", "SS-" + HardwareInfo.GetRandomHardwareID(8), RegistryValueKind.String);
