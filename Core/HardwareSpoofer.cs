@@ -7,6 +7,7 @@ using Microsoft.Win32;
 using System.Collections.Generic;
 using System.Security.Principal;
 using System.Net.NetworkInformation;
+using System.Linq;
 
 /*
     This class is responsible for spoofing the hardware of the computer.
@@ -18,11 +19,31 @@ namespace StealthSpoof.Core
 {
     public static class HardwareSpoofer
     {
+        // Registry path constants
+        private const string REG_PATH_GPU = @"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000";
+        private const string REG_PATH_NETWORK_ADAPTERS = @"SYSTEM\CurrentControlSet\Control\Class\{4D36E972-E325-11CE-BFC1-08002BE10318}";
+        private const string REG_PATH_WINDOWS_NT = @"SOFTWARE\Microsoft\Windows NT\CurrentVersion";
+        private const string REG_PATH_COMPUTER_NAME = @"SYSTEM\CurrentControlSet\Control\ComputerName\ComputerName";
+        private const string REG_PATH_ACTIVE_COMPUTER_NAME = @"SYSTEM\CurrentControlSet\Control\ComputerName\ActiveComputerName";
+        private const string REG_PATH_TCPIP_PARAMETERS = @"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters";
+        private const string REG_PATH_TCPIP_INTERFACES = @"SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces";
+        private const string REG_PATH_SCSI = @"HARDWARE\DEVICEMAP\Scsi";
+        private const string REG_PATH_DISK_PERIPHERALS = @"HARDWARE\DEVICEMAP\Scsi\Scsi Port %d\Scsi Bus %d\Target Id %d\Logical Unit Id %d";
+        private const string REG_PATH_HARDWARE_PROFILES = @"SYSTEM\CurrentControlSet\Control\IDConfigDB\Hardware Profiles\0001";
+        private const string REG_PATH_CRYPTOGRAPHY = @"SOFTWARE\Microsoft\Cryptography";
+        private const string REG_PATH_SQM_CLIENT = @"SOFTWARE\Microsoft\SQMClient";
+        private const string REG_PATH_SYSTEM_INFO = @"SYSTEM\CurrentControlSet\Control\SystemInformation";
+        private const string REG_PATH_WINDOWS_UPDATE = @"SOFTWARE\Microsoft\Windows\CurrentVersion\WindowsUpdate";
+        private const string REG_PATH_BIOS = @"HARDWARE\DESCRIPTION\System\BIOS";
+        private const string REG_PATH_EFI_VARIABLES = @"SYSTEM\CurrentControlSet\Control\EFI\Variables";
+        
         private static readonly string BackupPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "StealthSpoof", 
             "backup.json"
         );
+        
+        private static readonly string CMD_NETSH = "netsh";
         
         private static bool RequireAdminCheck()
         {
@@ -39,6 +60,40 @@ namespace StealthSpoof.Core
             }
             
             return true;
+        }
+        
+        // Method to spoof all hardware and software identifiers
+        public static void SpoofAll()
+        {
+            if (!RequireAdminCheck()) return;
+            
+            Logger.Instance.Info("Starting complete system spoofing process");
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("\nStarting complete system spoofing process...");
+            Console.ResetColor();
+            
+            try
+            {
+                BackupOriginalValues();
+                SpoofAllHardware();
+                SpoofPCName();
+                SpoofInstallationID();
+                SpoofExtendedGUIDs();
+                SpoofEFIVariableId();
+                SpoofSMBIOSSerialNumber();
+                
+                Logger.Instance.Info("Complete system spoofing finished successfully");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("\nComplete system spoofing finished! It may be necessary to restart the computer to apply all changes.");
+                Console.ResetColor();
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogException(ex, "Error during complete system spoofing");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Error during complete system spoofing: {ex.Message}");
+                Console.ResetColor();
+            }
         }
         
         public static void SpoofAllHardware()
@@ -513,27 +568,9 @@ namespace StealthSpoof.Core
                     {
                         key.SetValue("NetworkAddress", newMAC, RegistryValueKind.String);
                         
-                        using (Process process = new Process())
-                        {
-                            process.StartInfo.FileName = "netsh";
-                            process.StartInfo.Arguments = $"interface set interface \"{deviceId}\" disabled";
-                            process.StartInfo.UseShellExecute = false;
-                            process.StartInfo.CreateNoWindow = true;
-                            process.Start();
-                            process.WaitForExit();
-                        }
-                        
+                        DisableNetworkAdapter(deviceId);
                         Thread.Sleep(1000);
-                        
-                        using (Process process = new Process())
-                        {
-                            process.StartInfo.FileName = "netsh";
-                            process.StartInfo.Arguments = $"interface set interface \"{deviceId}\" enabled";
-                            process.StartInfo.UseShellExecute = false;
-                            process.StartInfo.CreateNoWindow = true;
-                            process.Start();
-                            process.WaitForExit();
-                        }
+                        EnableNetworkAdapter(deviceId);
                         
                         Console.ForegroundColor = ConsoleColor.Green;
                         Console.WriteLine($"MAC of adapter {deviceId} modified to: {newMAC}");
@@ -546,6 +583,32 @@ namespace StealthSpoof.Core
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Error spoofing MAC of adapter {deviceId}: {ex.Message}");
                 Console.ResetColor();
+            }
+        }
+        
+        private static void DisableNetworkAdapter(string deviceId)
+        {
+            using (Process process = new Process())
+            {
+                process.StartInfo.FileName = CMD_NETSH;
+                process.StartInfo.Arguments = $"interface set interface \"{deviceId}\" disabled";
+                process.StartInfo.UseShellExecute = false;
+                process.StartInfo.CreateNoWindow = true;
+                process.Start();
+                process.WaitForExit();
+            }
+        }
+        
+        private static void EnableNetworkAdapter(string deviceId)
+        {
+            using (Process process = new Process())
+            {
+                process.StartInfo.FileName = CMD_NETSH;
+                process.StartInfo.Arguments = $"interface set interface \"{deviceId}\" enabled";
+                process.StartInfo.UseShellExecute = false;
+                process.StartInfo.CreateNoWindow = true;
+                process.Start();
+                process.WaitForExit();
             }
         }
         
@@ -567,155 +630,14 @@ namespace StealthSpoof.Core
             
             try
             {
-                // Read and deserialize the backup file
-                string json = File.ReadAllText(BackupPath);
-                var backupData = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, object>>>(json);
+                var backupData = LoadBackupData();
+                if (backupData == null) return;
                 
-                if (backupData == null)
-                {
-                    Logger.Instance.Error("Backup file is invalid or corrupted");
-                    Console.ForegroundColor = ConsoleColor.Red;
-                    Console.WriteLine("Backup file is invalid or corrupted.");
-                    Console.ResetColor();
-                    return;
-                }
-                
-                // Restore CPU
-                Logger.Instance.Debug("Restoring CPU information");
-                if (backupData.TryGetValue("CPU", out var cpuInfo) && cpuInfo.TryGetValue("ProcessorId", out var processorId))
-                {
-                    using (RegistryKey key = Registry.LocalMachine.CreateSubKey(
-                        @"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000"))
-                    {
-                        if (key != null)
-                        {
-                            key.SetValue("ProcessorId", processorId?.ToString() ?? string.Empty, RegistryValueKind.String);
-                            Console.WriteLine("CPU ID restored successfully.");
-                        }
-                    }
-                }
-                
-                // Restore Disk
-                Logger.Instance.Debug("Restoring Disk information");
-                if (backupData.TryGetValue("Disk", out var diskInfo))
-                {
-                    using (var reg = Registry.LocalMachine.CreateSubKey(@"SYSTEM\CurrentControlSet\Services\disk\Enum"))
-                    {
-                        if (reg != null)
-                        {
-                            foreach (var entry in diskInfo)
-                            {
-                                string valueStr = entry.Value?.ToString() ?? string.Empty;
-                                reg.SetValue(entry.Key, valueStr, RegistryValueKind.String);
-                            }
-                            Console.WriteLine("Disk IDs restored successfully.");
-                        }
-                    }
-                }
-                
-                // Restore Motherboard/BIOS
-                Logger.Instance.Debug("Restoring Motherboard information");
-                if (backupData.TryGetValue("Motherboard", out var motherboardInfo))
-                {
-                    using (RegistryKey key = Registry.LocalMachine.CreateSubKey(
-                        @"SYSTEM\CurrentControlSet\Control\SystemInformation"))
-                    {
-                        if (key != null)
-                        {
-                            if (motherboardInfo.TryGetValue("SystemManufacturer", out var manufacturer))
-                                key.SetValue("SystemManufacturer", manufacturer?.ToString() ?? string.Empty, RegistryValueKind.String);
-                            
-                            if (motherboardInfo.TryGetValue("SystemProductName", out var productName))
-                                key.SetValue("SystemProductName", productName?.ToString() ?? string.Empty, RegistryValueKind.String);
-                            
-                            if (motherboardInfo.TryGetValue("BaseBoardProduct", out var baseBoard))
-                                key.SetValue("BaseBoardProduct", baseBoard?.ToString() ?? string.Empty, RegistryValueKind.String);
-                        }
-                    }
-                    
-                    using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"SYSTEM\HardwareConfig"))
-                    {
-                        if (key != null && motherboardInfo.TryGetValue("UUID", out var uuid))
-                        {
-                            string uuidStr = uuid?.ToString() ?? string.Empty;
-                            key.SetValue("LastConfig", uuidStr, RegistryValueKind.String);
-                        }
-                    }
-                    
-                    Console.WriteLine("Motherboard information restored successfully.");
-                }
-                
-                // Restore GPU
-                Logger.Instance.Debug("Restoring GPU information");
-                if (backupData.TryGetValue("GPU", out var gpuInfo))
-                {
-                    using (RegistryKey key = Registry.LocalMachine.CreateSubKey(
-                        @"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000"))
-                    {
-                        if (key != null)
-                        {
-                            if (gpuInfo.TryGetValue("HardwareID", out var hardwareId))
-                            {
-                                string hardwareIdStr = hardwareId?.ToString() ?? string.Empty;
-                                key.SetValue("HardwareID", hardwareIdStr, RegistryValueKind.String);
-                            }
-                            
-                            if (gpuInfo.TryGetValue("MemorySize", out var memorySize))
-                            {
-                                string memorySizeStr = memorySize?.ToString() ?? "0";
-                                if (long.TryParse(memorySizeStr, out long size))
-                                    key.SetValue("HardwareInformation.qwMemorySize", size, RegistryValueKind.QWord);
-                            }
-                        }
-                    }
-                    
-                    Console.WriteLine("GPU information restored successfully.");
-                }
-                
-                // Restore MAC Addresses
-                Logger.Instance.Debug("Restoring MAC addresses");
-                if (backupData.TryGetValue("MAC", out var macInfo))
-                {
-                    foreach (var entry in macInfo)
-                    {
-                        string deviceId = entry.Key;
-                        string mac = entry.Value?.ToString()?.Replace(":", "") ?? string.Empty;
-                        
-                        using (RegistryKey key = Registry.LocalMachine.CreateSubKey(
-                            $@"SYSTEM\CurrentControlSet\Control\Class\{{4D36E972-E325-11CE-BFC1-08002BE10318}}\{deviceId}"))
-                        {
-                            if (key != null)
-                            {
-                                key.SetValue("NetworkAddress", mac, RegistryValueKind.String);
-                                
-                                // Disable and re-enable the network adapter to apply changes
-                                using (Process process = new Process())
-                                {
-                                    process.StartInfo.FileName = "netsh";
-                                    process.StartInfo.Arguments = $"interface set interface \"{deviceId}\" disabled";
-                                    process.StartInfo.UseShellExecute = false;
-                                    process.StartInfo.CreateNoWindow = true;
-                                    process.Start();
-                                    process.WaitForExit();
-                                }
-                                
-                                Thread.Sleep(1000);
-                                
-                                using (Process process = new Process())
-                                {
-                                    process.StartInfo.FileName = "netsh";
-                                    process.StartInfo.Arguments = $"interface set interface \"{deviceId}\" enabled";
-                                    process.StartInfo.UseShellExecute = false;
-                                    process.StartInfo.CreateNoWindow = true;
-                                    process.Start();
-                                    process.WaitForExit();
-                                }
-                            }
-                        }
-                    }
-                    
-                    Console.WriteLine("MAC addresses restored successfully.");
-                }
+                RestoreCPU(backupData);
+                RestoreDisk(backupData);
+                RestoreMotherboard(backupData);
+                RestoreGPU(backupData);
+                RestoreMAC(backupData);
                 
                 Logger.Instance.Info("Hardware restoration completed successfully");
                 Console.ForegroundColor = ConsoleColor.Green;
@@ -729,6 +651,750 @@ namespace StealthSpoof.Core
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine($"Error restoring settings: {ex.Message}");
                 Console.ResetColor();
+            }
+        }
+        
+        private static Dictionary<string, Dictionary<string, object>>? LoadBackupData()
+        {
+            try
+            {
+                // Read and deserialize the backup file
+                string json = File.ReadAllText(BackupPath);
+                var backupData = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, Dictionary<string, object>>>(json);
+                
+                if (backupData == null)
+                {
+                    Logger.Instance.Error("Backup file is invalid or corrupted");
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Backup file is invalid or corrupted.");
+                    Console.ResetColor();
+                }
+                
+                return backupData;
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogException(ex, "Error loading backup data");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Error loading backup data: {ex.Message}");
+                Console.ResetColor();
+                return null;
+            }
+        }
+        
+        private static void RestoreCPU(Dictionary<string, Dictionary<string, object>> backupData)
+        {
+            Logger.Instance.Debug("Restoring CPU information");
+            if (backupData.TryGetValue("CPU", out var cpuInfo) && cpuInfo.TryGetValue("ProcessorId", out var processorId))
+            {
+                using (RegistryKey key = Registry.LocalMachine.CreateSubKey(
+                    @"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000"))
+                {
+                    if (key != null)
+                    {
+                        key.SetValue("ProcessorId", processorId?.ToString() ?? string.Empty, RegistryValueKind.String);
+                        Console.WriteLine("CPU ID restored successfully.");
+                    }
+                }
+            }
+        }
+        
+        private static void RestoreDisk(Dictionary<string, Dictionary<string, object>> backupData)
+        {
+            Logger.Instance.Debug("Restoring Disk information");
+            if (backupData.TryGetValue("Disk", out var diskInfo))
+            {
+                using (var reg = Registry.LocalMachine.CreateSubKey(@"SYSTEM\CurrentControlSet\Services\disk\Enum"))
+                {
+                    if (reg != null)
+                    {
+                        foreach (var entry in diskInfo)
+                        {
+                            string valueStr = entry.Value?.ToString() ?? string.Empty;
+                            reg.SetValue(entry.Key, valueStr, RegistryValueKind.String);
+                        }
+                        Console.WriteLine("Disk IDs restored successfully.");
+                    }
+                }
+            }
+        }
+        
+        private static void RestoreMotherboard(Dictionary<string, Dictionary<string, object>> backupData)
+        {
+            Logger.Instance.Debug("Restoring Motherboard information");
+            if (backupData.TryGetValue("Motherboard", out var motherboardInfo))
+            {
+                using (RegistryKey key = Registry.LocalMachine.CreateSubKey(
+                    @"SYSTEM\CurrentControlSet\Control\SystemInformation"))
+                {
+                    if (key != null)
+                    {
+                        if (motherboardInfo.TryGetValue("SystemManufacturer", out var manufacturer))
+                            key.SetValue("SystemManufacturer", manufacturer?.ToString() ?? string.Empty, RegistryValueKind.String);
+                        
+                        if (motherboardInfo.TryGetValue("SystemProductName", out var productName))
+                            key.SetValue("SystemProductName", productName?.ToString() ?? string.Empty, RegistryValueKind.String);
+                        
+                        if (motherboardInfo.TryGetValue("BaseBoardProduct", out var baseBoard))
+                            key.SetValue("BaseBoardProduct", baseBoard?.ToString() ?? string.Empty, RegistryValueKind.String);
+                    }
+                }
+                
+                using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"SYSTEM\HardwareConfig"))
+                {
+                    if (key != null && motherboardInfo.TryGetValue("UUID", out var uuid))
+                    {
+                        string uuidStr = uuid?.ToString() ?? string.Empty;
+                        key.SetValue("LastConfig", uuidStr, RegistryValueKind.String);
+                    }
+                }
+                
+                Console.WriteLine("Motherboard information restored successfully.");
+            }
+        }
+        
+        private static void RestoreGPU(Dictionary<string, Dictionary<string, object>> backupData)
+        {
+            Logger.Instance.Debug("Restoring GPU information");
+            if (backupData.TryGetValue("GPU", out var gpuInfo))
+            {
+                using (RegistryKey key = Registry.LocalMachine.CreateSubKey(
+                    @"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000"))
+                {
+                    if (key != null)
+                    {
+                        if (gpuInfo.TryGetValue("HardwareID", out var hardwareId))
+                        {
+                            string hardwareIdStr = hardwareId?.ToString() ?? string.Empty;
+                            key.SetValue("HardwareID", hardwareIdStr, RegistryValueKind.String);
+                        }
+                        
+                        if (gpuInfo.TryGetValue("MemorySize", out var memorySize))
+                        {
+                            string memorySizeStr = memorySize?.ToString() ?? "0";
+                            if (long.TryParse(memorySizeStr, out long size))
+                                key.SetValue("HardwareInformation.qwMemorySize", size, RegistryValueKind.QWord);
+                        }
+                    }
+                }
+                
+                Console.WriteLine("GPU information restored successfully.");
+            }
+        }
+        
+        private static void RestoreMAC(Dictionary<string, Dictionary<string, object>> backupData)
+        {
+            Logger.Instance.Debug("Restoring MAC addresses");
+            if (backupData.TryGetValue("MAC", out var macInfo))
+            {
+                foreach (var entry in macInfo)
+                {
+                    string deviceId = entry.Key;
+                    string mac = entry.Value?.ToString()?.Replace(":", "") ?? string.Empty;
+                    
+                    RestoreSingleMAC(deviceId, mac);
+                }
+                
+                Console.WriteLine("MAC addresses restored successfully.");
+            }
+        }
+        
+        private static void RestoreSingleMAC(string deviceId, string mac)
+        {
+            using (RegistryKey key = Registry.LocalMachine.CreateSubKey(
+                $@"SYSTEM\CurrentControlSet\Control\Class\{{4D36E972-E325-11CE-BFC1-08002BE10318}}\{deviceId}"))
+            {
+                if (key != null)
+                {
+                    key.SetValue("NetworkAddress", mac, RegistryValueKind.String);
+                    
+                    // Disable and re-enable the network adapter to apply changes
+                    DisableNetworkAdapter(deviceId);
+                    Thread.Sleep(1000);
+                    EnableNetworkAdapter(deviceId);
+                }
+            }
+        }
+        
+        public static void SpoofInstallationID()
+        {
+            if (!RequireAdminCheck()) return;
+            
+            Logger.Instance.Info("Starting Installation ID spoofing");
+            Console.WriteLine("\nSpoofing Installation ID...");
+            
+            try
+            {
+                string newInstallationID = Guid.NewGuid().ToString().ToUpper();
+                
+                using (RegistryKey? key = Registry.LocalMachine.CreateSubKey(REG_PATH_WINDOWS_NT))
+                {
+                    if (key != null)
+                    {
+                        key.SetValue("InstallationID", newInstallationID, RegistryValueKind.String);
+                        key.SetValue("InstallDate", DateTime.Now.Subtract(new DateTime(1970, 1, 1)).TotalSeconds, RegistryValueKind.DWord);
+                    }
+                }
+                
+                Logger.Instance.Info($"Installation ID spoofed successfully to: {newInstallationID}");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"Installation ID modified to: {newInstallationID}");
+                Console.ResetColor();
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogException(ex, "Error spoofing Installation ID");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Error spoofing Installation ID: {ex.Message}");
+                Console.ResetColor();
+            }
+        }
+        
+        public static void SpoofPCName()
+        {
+            if (!RequireAdminCheck()) return;
+            
+            Logger.Instance.Info("Starting PC Name spoofing");
+            Console.WriteLine("\nSpoofing PC Name...");
+            
+            try
+            {
+                string newPCName = "PC-" + HardwareInfo.GetRandomHardwareID(8);
+                
+                using (RegistryKey? key = Registry.LocalMachine.CreateSubKey(REG_PATH_COMPUTER_NAME))
+                {
+                    if (key != null)
+                    {
+                        key.SetValue("ComputerName", newPCName, RegistryValueKind.String);
+                    }
+                }
+                
+                using (RegistryKey? key = Registry.LocalMachine.CreateSubKey(REG_PATH_ACTIVE_COMPUTER_NAME))
+                {
+                    if (key != null)
+                    {
+                        key.SetValue("ComputerName", newPCName, RegistryValueKind.String);
+                    }
+                }
+                
+                using (RegistryKey? key = Registry.LocalMachine.CreateSubKey(REG_PATH_TCPIP_PARAMETERS))
+                {
+                    if (key != null)
+                    {
+                        key.SetValue("Hostname", newPCName, RegistryValueKind.String);
+                        key.SetValue("NV Hostname", newPCName, RegistryValueKind.String);
+                    }
+                }
+                
+                Logger.Instance.Info($"PC Name spoofed successfully to: {newPCName}");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"PC Name modified to: {newPCName}");
+                Console.WriteLine("Note: A system restart is required for this change to take full effect.");
+                Console.ResetColor();
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogException(ex, "Error spoofing PC Name");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Error spoofing PC Name: {ex.Message}");
+                Console.ResetColor();
+            }
+        }
+        
+        public static void SpoofAdvancedDiskInfo()
+        {
+            if (!RequireAdminCheck()) return;
+            
+            Logger.Instance.Info("Starting Advanced Disk Info spoofing");
+            Console.WriteLine("\nSpoofing Advanced Disk Information...");
+            
+            try
+            {
+                // Spoof SCSI information
+                using (RegistryKey? scsiPorts = Registry.LocalMachine.OpenSubKey(REG_PATH_SCSI, true))
+                {
+                    if (scsiPorts != null)
+                    {
+                        foreach (string portName in scsiPorts.GetSubKeyNames())
+                        {
+                            using (RegistryKey? port = scsiPorts.OpenSubKey(portName, true))
+                            {
+                                if (port != null)
+                                {
+                                    foreach (string busName in port.GetSubKeyNames())
+                                    {
+                                        if (busName.StartsWith("Scsi Bus"))
+                                        {
+                                            using (RegistryKey? bus = port.OpenSubKey(busName, true))
+                                            {
+                                                if (bus != null)
+                                                {
+                                                    foreach (string targetName in bus.GetSubKeyNames())
+                                                    {
+                                                        using (RegistryKey? target = bus.OpenSubKey(targetName, true))
+                                                        {
+                                                            if (target != null)
+                                                            {
+                                                                foreach (string lun in target.GetSubKeyNames())
+                                                                {
+                                                                    using (RegistryKey? lunKey = target.OpenSubKey(lun, true))
+                                                                    {
+                                                                        if (lunKey != null)
+                                                                        {
+                                                                            lunKey.SetValue("Identifier", HardwareInfo.GetRandomHardwareID(20), RegistryValueKind.String);
+                                                                            lunKey.SetValue("SerialNumber", HardwareInfo.GetRandomHardwareID(16), RegistryValueKind.String);
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                Logger.Instance.Info("Advanced Disk Info spoofed successfully");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("Advanced Disk Information modified successfully.");
+                Console.WriteLine("Note: A system restart is required for these changes to take full effect.");
+                Console.ResetColor();
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogException(ex, "Error spoofing Advanced Disk Info");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Error spoofing Advanced Disk Info: {ex.Message}");
+                Console.ResetColor();
+            }
+        }
+        
+        public static void SpoofExtendedGUIDs()
+        {
+            if (!RequireAdminCheck()) return;
+            
+            Logger.Instance.Info("Starting Extended GUIDs spoofing");
+            Console.WriteLine("\nSpoofing Extended GUIDs...");
+            
+            try
+            {
+                // Spoof Machine GUID
+                using (RegistryKey? key = Registry.LocalMachine.CreateSubKey(REG_PATH_CRYPTOGRAPHY))
+                {
+                    if (key != null)
+                    {
+                        key.SetValue("MachineGuid", Guid.NewGuid().ToString(), RegistryValueKind.String);
+                    }
+                }
+                
+                // Spoof Hardware Profile GUID
+                using (RegistryKey? key = Registry.LocalMachine.CreateSubKey(REG_PATH_HARDWARE_PROFILES))
+                {
+                    if (key != null)
+                    {
+                        key.SetValue("HwProfileGuid", "{" + Guid.NewGuid().ToString().ToUpper() + "}", RegistryValueKind.String);
+                    }
+                }
+                
+                // Spoof SQM Client ID
+                using (RegistryKey? key = Registry.LocalMachine.CreateSubKey(REG_PATH_SQM_CLIENT))
+                {
+                    if (key != null)
+                    {
+                        key.SetValue("MachineId", "{" + Guid.NewGuid().ToString().ToUpper() + "}", RegistryValueKind.String);
+                    }
+                }
+                
+                // Spoof Windows Update ID
+                using (RegistryKey? key = Registry.LocalMachine.CreateSubKey(REG_PATH_WINDOWS_UPDATE))
+                {
+                    if (key != null)
+                    {
+                        key.SetValue("SusClientId", Guid.NewGuid().ToString(), RegistryValueKind.String);
+                    }
+                }
+                
+                Logger.Instance.Info("Extended GUIDs spoofed successfully");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("Extended GUIDs modified successfully.");
+                Console.ResetColor();
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogException(ex, "Error spoofing Extended GUIDs");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Error spoofing Extended GUIDs: {ex.Message}");
+                Console.ResetColor();
+            }
+        }
+        
+        public static void SpoofEFIVariableId()
+        {
+            if (!RequireAdminCheck()) return;
+            
+            Logger.Instance.Info("Starting EFI Variable ID spoofing");
+            Console.WriteLine("\nSpoofing EFI Variable ID...");
+            
+            try
+            {
+                using (RegistryKey? key = Registry.LocalMachine.CreateSubKey(REG_PATH_BIOS))
+                {
+                    if (key != null)
+                    {
+                        key.SetValue("SystemManufacturer", "StealthSpoof BIOS", RegistryValueKind.String);
+                        key.SetValue("SystemProductName", "StealthSpoof System", RegistryValueKind.String);
+                        key.SetValue("SystemFamily", "StealthSpoof Family", RegistryValueKind.String);
+                        key.SetValue("SystemVersion", "1.0", RegistryValueKind.String);
+                        key.SetValue("SystemSKU", "SS-" + HardwareInfo.GetRandomHardwareID(8), RegistryValueKind.String);
+                    }
+                }
+                
+                Logger.Instance.Info("EFI Variable ID spoofed successfully");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("EFI Variable ID modified successfully.");
+                Console.WriteLine("Note: Some changes may require a system restart to take full effect.");
+                Console.ResetColor();
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogException(ex, "Error spoofing EFI Variable ID");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Error spoofing EFI Variable ID: {ex.Message}");
+                Console.ResetColor();
+            }
+        }
+        
+        public static void SpoofSMBIOSSerialNumber()
+        {
+            if (!RequireAdminCheck()) return;
+            
+            Logger.Instance.Info("Starting SMBIOS Serial Number spoofing");
+            Console.WriteLine("\nSpoofing SMBIOS Serial Number...");
+            
+            try
+            {
+                string newSerialNumber = HardwareInfo.GetRandomHardwareID(16);
+                
+                using (RegistryKey? key = Registry.LocalMachine.CreateSubKey(REG_PATH_BIOS))
+                {
+                    if (key != null)
+                    {
+                        key.SetValue("SystemSerialNumber", newSerialNumber, RegistryValueKind.String);
+                    }
+                }
+                
+                Logger.Instance.Info($"SMBIOS Serial Number spoofed successfully to: {newSerialNumber}");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"SMBIOS Serial Number modified to: {newSerialNumber}");
+                Console.ResetColor();
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogException(ex, "Error spoofing SMBIOS Serial Number");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Error spoofing SMBIOS Serial Number: {ex.Message}");
+                Console.ResetColor();
+            }
+        }
+        
+        public static void CheckRegistryKeys()
+        {
+            if (!RequireAdminCheck()) return;
+            
+            Logger.Instance.Info("Checking registry keys");
+            Console.WriteLine("\nChecking Registry Keys...");
+            
+            try
+            {
+                Console.WriteLine("\n=== Registry Key Status ===");
+                
+                CheckRegistryKey(REG_PATH_GPU, "GPU Registry");
+                CheckRegistryKey(REG_PATH_NETWORK_ADAPTERS, "Network Adapters Registry");
+                CheckRegistryKey(REG_PATH_WINDOWS_NT, "Windows NT Registry");
+                CheckRegistryKey(REG_PATH_COMPUTER_NAME, "Computer Name Registry");
+                CheckRegistryKey(REG_PATH_ACTIVE_COMPUTER_NAME, "Active Computer Name Registry");
+                CheckRegistryKey(REG_PATH_TCPIP_PARAMETERS, "TCP/IP Parameters Registry");
+                CheckRegistryKey(REG_PATH_SCSI, "SCSI Registry");
+                CheckRegistryKey(REG_PATH_HARDWARE_PROFILES, "Hardware Profiles Registry");
+                CheckRegistryKey(REG_PATH_CRYPTOGRAPHY, "Cryptography Registry");
+                CheckRegistryKey(REG_PATH_SQM_CLIENT, "SQM Client Registry");
+                CheckRegistryKey(REG_PATH_SYSTEM_INFO, "System Information Registry");
+                CheckRegistryKey(REG_PATH_WINDOWS_UPDATE, "Windows Update Registry");
+                CheckRegistryKey(REG_PATH_BIOS, "BIOS Registry");
+                
+                Logger.Instance.Info("Registry key check completed");
+                Console.WriteLine("\nRegistry key check completed.");
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogException(ex, "Error checking registry keys");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Error checking registry keys: {ex.Message}");
+                Console.ResetColor();
+            }
+        }
+        
+        private static void CheckRegistryKey(string keyPath, string keyName)
+        {
+            try
+            {
+                using (RegistryKey? key = Registry.LocalMachine.OpenSubKey(keyPath))
+                {
+                    if (key != null)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine($"✓ {keyName}: Accessible");
+                        Console.ResetColor();
+                    }
+                    else
+                    {
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"✗ {keyName}: Not accessible");
+                        Console.ResetColor();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"✗ {keyName}: Error - {ex.Message}");
+                Console.ResetColor();
+            }
+        }
+        
+        public static void DisplaySystemData()
+        {
+            Logger.Instance.Info("Displaying system data");
+            Console.WriteLine("\n=== System Data ===");
+            
+            try
+            {
+                // Display OS information
+                Console.WriteLine("\n--- Operating System ---");
+                Console.WriteLine($"OS: {Environment.OSVersion}");
+                Console.WriteLine($"64-bit OS: {Environment.Is64BitOperatingSystem}");
+                Console.WriteLine($"Machine Name: {Environment.MachineName}");
+                Console.WriteLine($"User Name: {Environment.UserName}");
+                
+                // Display CPU information
+                Console.WriteLine("\n--- CPU Information ---");
+                using (var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_Processor"))
+                {
+                    foreach (var obj in searcher.Get())
+                    {
+                        Console.WriteLine($"Name: {obj["Name"]}");
+                        Console.WriteLine($"Manufacturer: {obj["Manufacturer"]}");
+                        Console.WriteLine($"Processor ID: {obj["ProcessorId"]}");
+                        Console.WriteLine($"Cores: {obj["NumberOfCores"]}");
+                        Console.WriteLine($"Logical Processors: {obj["NumberOfLogicalProcessors"]}");
+                        Console.WriteLine($"Max Clock Speed: {obj["MaxClockSpeed"]} MHz");
+                    }
+                }
+                
+                // Display motherboard information
+                Console.WriteLine("\n--- Motherboard Information ---");
+                using (var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_BaseBoard"))
+                {
+                    foreach (var obj in searcher.Get())
+                    {
+                        Console.WriteLine($"Manufacturer: {obj["Manufacturer"]}");
+                        Console.WriteLine($"Product: {obj["Product"]}");
+                        Console.WriteLine($"Serial Number: {obj["SerialNumber"]}");
+                    }
+                }
+                
+                // Display BIOS information
+                Console.WriteLine("\n--- BIOS Information ---");
+                using (var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_BIOS"))
+                {
+                    foreach (var obj in searcher.Get())
+                    {
+                        Console.WriteLine($"Manufacturer: {obj["Manufacturer"]}");
+                        Console.WriteLine($"Version: {obj["Version"]}");
+                        Console.WriteLine($"Serial Number: {obj["SerialNumber"]}");
+                        Console.WriteLine($"Release Date: {obj["ReleaseDate"]}");
+                    }
+                }
+                
+                // Display disk information
+                Console.WriteLine("\n--- Disk Information ---");
+                using (var searcher = new ManagementObjectSearcher("SELECT * FROM Win32_DiskDrive"))
+                {
+                    foreach (var obj in searcher.Get())
+                    {
+                        Console.WriteLine($"Model: {obj["Model"]}");
+                        Console.WriteLine($"Serial Number: {obj["SerialNumber"]}");
+                        Console.WriteLine($"Interface Type: {obj["InterfaceType"]}");
+                        Console.WriteLine($"Size: {Convert.ToDouble(obj["Size"]) / (1024 * 1024 * 1024):F2} GB");
+                        Console.WriteLine("---");
+                    }
+                }
+                
+                // Display network adapter information
+                Console.WriteLine("\n--- Network Adapters ---");
+                foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
+                {
+                    if (nic.NetworkInterfaceType != NetworkInterfaceType.Loopback)
+                    {
+                        Console.WriteLine($"Name: {nic.Name}");
+                        Console.WriteLine($"Description: {nic.Description}");
+                        Console.WriteLine($"MAC Address: {BitConverter.ToString(nic.GetPhysicalAddress().GetAddressBytes()).Replace("-", ":")}");
+                        Console.WriteLine($"Status: {nic.OperationalStatus}");
+                        Console.WriteLine("---");
+                    }
+                }
+                
+                Logger.Instance.Info("System data display completed");
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogException(ex, "Error displaying system data");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Error displaying system data: {ex.Message}");
+                Console.ResetColor();
+            }
+        }
+        
+        public static void ClearGameCache(string gameName)
+        {
+            if (!RequireAdminCheck()) return;
+            
+            Logger.Instance.Info($"Clearing {gameName} cache");
+            Console.WriteLine($"\nClearing {gameName} cache...");
+            
+            try
+            {
+                switch (gameName)
+                {
+                    case "Ubisoft":
+                        ClearUbisoftCache();
+                        break;
+                    case "Valorant":
+                        ClearValorantCache();
+                        break;
+                    case "CallOfDuty":
+                        ClearCallOfDutyCache();
+                        break;
+                    default:
+                        Console.ForegroundColor = ConsoleColor.Red;
+                        Console.WriteLine($"Unknown game: {gameName}");
+                        Console.ResetColor();
+                        return;
+                }
+                
+                Logger.Instance.Info($"{gameName} cache cleared successfully");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"{gameName} cache cleared successfully!");
+                Console.ResetColor();
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogException(ex, $"Error clearing {gameName} cache");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Error clearing {gameName} cache: {ex.Message}");
+                Console.ResetColor();
+            }
+        }
+        
+        private static void ClearUbisoftCache()
+        {
+            string ubisoftPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Ubisoft Game Launcher"
+            );
+            
+            ClearDirectory(ubisoftPath, "cache");
+            ClearDirectory(ubisoftPath, "logs");
+            ClearDirectory(ubisoftPath, "temp");
+        }
+        
+        private static void ClearValorantCache()
+        {
+            string valorantPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Riot Games", "Valorant"
+            );
+            
+            ClearDirectory(valorantPath, "Saved");
+            
+            string vgcPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+                "Riot Vanguard"
+            );
+            
+            if (Directory.Exists(vgcPath))
+            {
+                Console.WriteLine("Note: Vanguard files found. You may need to reinstall Vanguard after spoofing.");
+            }
+        }
+        
+        private static void ClearCallOfDutyCache()
+        {
+            string codPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "Activision"
+            );
+            
+            ClearDirectory(codPath, "Cache");
+            
+            string blizzardPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "Battle.net"
+            );
+            
+            ClearDirectory(blizzardPath, "Cache");
+        }
+        
+        private static void ClearDirectory(string basePath, string dirName)
+        {
+            string fullPath = Path.Combine(basePath, dirName);
+            
+            if (Directory.Exists(fullPath))
+            {
+                try
+                {
+                    DirectoryInfo di = new DirectoryInfo(fullPath);
+                    
+                    foreach (FileInfo file in di.GetFiles())
+                    {
+                        try
+                        {
+                            file.Delete();
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Instance.Warning($"Could not delete file {file.FullName}: {ex.Message}");
+                        }
+                    }
+                    
+                    foreach (DirectoryInfo dir in di.GetDirectories())
+                    {
+                        try
+                        {
+                            dir.Delete(true);
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Instance.Warning($"Could not delete directory {dir.FullName}: {ex.Message}");
+                        }
+                    }
+                    
+                    Console.WriteLine($"Cleared {fullPath}");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.Warning($"Error clearing directory {fullPath}: {ex.Message}");
+                    Console.WriteLine($"Error clearing {fullPath}: {ex.Message}");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"Directory not found: {fullPath}");
             }
         }
     }
