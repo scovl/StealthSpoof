@@ -3,17 +3,17 @@ using System;
 namespace StealthSpoof.Core
 {
     /// <summary>
-    /// Classe responsável por verificar o ambiente de execução
+    /// Class responsible for checking the application environment
     /// </summary>
     public static class EnvironmentChecker
     {
         /// <summary>
-        /// Verifica se o ambiente é compatível com a aplicação
+        /// Checks if the environment is compatible with the application
         /// </summary>
-        /// <returns>True se o ambiente for compatível, False caso contrário</returns>
+        /// <returns>True if the environment is compatible, False otherwise</returns>
         public static bool CheckEnvironment()
         {
-            // Verifica se o sistema operacional é Windows
+            // Check if the operating system is Windows
             if (!OperatingSystem.IsWindows())
             {
                 Console.ForegroundColor = ConsoleColor.Red;
@@ -22,7 +22,7 @@ namespace StealthSpoof.Core
                 return false;
             }
             
-            // Verifica a versão do Windows
+            // Check the Windows version
             Version windowsVersion = Environment.OSVersion.Version;
             if (windowsVersion.Major < 10)
             {

@@ -160,9 +160,9 @@ namespace StealthSpoof.Core
         }
         
         /// <summary>
-        /// Processa a opção escolhida no menu de diagnósticos
+        /// Process the selected option in the diagnostics menu
         /// </summary>
-        /// <param name="input">A opção escolhida</param>
+        /// <param name="input">The selected option</param>
         private static void ProcessDiagnosticsMenuOption(string? input)
         {
             switch (input)
@@ -182,7 +182,7 @@ namespace StealthSpoof.Core
         }
         
         /// <summary>
-        /// Exibe o menu de limpeza de cache de jogos
+        /// Displays the game cache menu
         /// </summary>
         public static void DisplayGameCacheMenu()
         {
@@ -198,9 +198,9 @@ namespace StealthSpoof.Core
         }
         
         /// <summary>
-        /// Processa a opção escolhida no menu de limpeza de cache de jogos
+        /// Process the selected option in the game cache menu
         /// </summary>
-        /// <param name="input">A opção escolhida</param>
+        /// <param name="input">The selected option</param>
         private static void ProcessGameCacheMenuOption(string? input)
         {
             switch (input)
@@ -223,7 +223,7 @@ namespace StealthSpoof.Core
         }
         
         /// <summary>
-        /// Executa o loop principal do menu
+        /// Executes the main menu loop
         /// </summary>
         public static void RunMainLoop()
         {

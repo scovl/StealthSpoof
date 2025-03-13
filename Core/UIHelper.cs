@@ -3,7 +3,7 @@ using System;
 namespace StealthSpoof.Core
 {
     /// <summary>
-    /// Classe auxiliar para funções de interface do usuário
+    /// Class helper for user interface functions
     /// </summary>
     public static class UIHelper
     {
@@ -11,7 +11,7 @@ namespace StealthSpoof.Core
         public const string PROMPT_OPTION = "\nOption: ";
         
         /// <summary>
-        /// Exibe o cabeçalho do aplicativo
+        /// Displays the application header
         /// </summary>
         public static void DisplayHeader()
         {
@@ -24,9 +24,9 @@ namespace StealthSpoof.Core
         }
         
         /// <summary>
-        /// Exibe uma mensagem de opção inválida
+        /// Displays an invalid option message
         /// </summary>
-        /// <param name="input">A entrada inválida</param>
+        /// <param name="input">The invalid input</param>
         public static void DisplayInvalidOption(string? input)
         {
             Console.ForegroundColor = ConsoleColor.Red;
@@ -37,9 +37,9 @@ namespace StealthSpoof.Core
         }
         
         /// <summary>
-        /// Lê uma opção do usuário
+        /// Reads the user's option
         /// </summary>
-        /// <returns>A opção escolhida pelo usuário</returns>
+        /// <returns>The option chosen by the user</returns>
         public static string? ReadOption()
         {
             Console.Write(PROMPT_OPTION);
