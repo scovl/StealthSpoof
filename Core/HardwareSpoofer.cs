@@ -37,6 +37,9 @@ namespace StealthSpoof.Core
         private const string REG_PATH_BIOS = @"HARDWARE\DESCRIPTION\System\BIOS";
         private const string REG_PATH_EFI_VARIABLES = @"SYSTEM\CurrentControlSet\Control\EFI\Variables";
         
+        // Property name constants
+        private const string PROP_PROCESSOR_ID = "ProcessorId";
+        
         private static readonly string BackupPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "StealthSpoof", 
@@ -147,8 +150,8 @@ namespace StealthSpoof.Core
                 {
                     foreach (var obj in searcher.Get())
                     {
-                        if (obj["ProcessorId"] != null)
-                            cpuInfo["ProcessorId"] = obj["ProcessorId"]?.ToString() ?? string.Empty;
+                        if (obj[PROP_PROCESSOR_ID] != null)
+                            cpuInfo[PROP_PROCESSOR_ID] = obj[PROP_PROCESSOR_ID]?.ToString() ?? string.Empty;
                         
                         // Other CPU properties can be added here
                         break; // Only backup the first CPU
@@ -205,7 +208,7 @@ namespace StealthSpoof.Core
                     }
                 }
                 
-                using (RegistryKey? key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\SystemInformation"))
+                using (RegistryKey? key = Registry.LocalMachine.OpenSubKey(REG_PATH_SYSTEM_INFO))
                 {
                     if (key != null)
                     {
@@ -248,7 +251,7 @@ namespace StealthSpoof.Core
                     }
                 }
                 
-                using (RegistryKey? key = Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000"))
+                using (RegistryKey? key = Registry.LocalMachine.OpenSubKey(REG_PATH_GPU))
                 {
                     if (key != null)
                     {
@@ -344,12 +347,12 @@ namespace StealthSpoof.Core
                 string newCpuId = HardwareInfo.GetRandomHardwareID();
                 Logger.Instance.Debug($"Generated new CPU ID: {newCpuId}");
                 
-                string registryKey = @"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000";
-                Logger.Instance.LogRegistryOperation(registryKey, "ProcessorId", "MODIFY");
+                string registryKey = REG_PATH_GPU;
+                Logger.Instance.LogRegistryOperation(registryKey, PROP_PROCESSOR_ID, "MODIFY");
                 
                 using (RegistryKey key = Registry.LocalMachine.CreateSubKey(registryKey))
                 {
-                    key.SetValue("ProcessorId", newCpuId, RegistryValueKind.String);
+                    key.SetValue(PROP_PROCESSOR_ID, newCpuId, RegistryValueKind.String);
                 }
                 
                 Logger.Instance.Info($"CPU ID spoofed successfully to: {newCpuId}");
@@ -425,7 +428,7 @@ namespace StealthSpoof.Core
                 string newSerialNumber = HardwareInfo.GetRandomHardwareID(16);
                 string newUUID = Guid.NewGuid().ToString().ToUpper();
                 
-                using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"SYSTEM\CurrentControlSet\Control\SystemInformation"))
+                using (RegistryKey key = Registry.LocalMachine.CreateSubKey(REG_PATH_SYSTEM_INFO))
                 {
                     if (key != null)
                     {
@@ -466,7 +469,7 @@ namespace StealthSpoof.Core
             {
                 string newGpuId = HardwareInfo.GetRandomHardwareID();
                 
-                using (RegistryKey key = Registry.LocalMachine.CreateSubKey(@"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000"))
+                using (RegistryKey key = Registry.LocalMachine.CreateSubKey(REG_PATH_GPU))
                 {
                     if (key != null)
                     {
@@ -685,14 +688,13 @@ namespace StealthSpoof.Core
         private static void RestoreCPU(Dictionary<string, Dictionary<string, object>> backupData)
         {
             Logger.Instance.Debug("Restoring CPU information");
-            if (backupData.TryGetValue("CPU", out var cpuInfo) && cpuInfo.TryGetValue("ProcessorId", out var processorId))
+            if (backupData.TryGetValue("CPU", out var cpuInfo) && cpuInfo.TryGetValue(PROP_PROCESSOR_ID, out var processorId))
             {
-                using (RegistryKey key = Registry.LocalMachine.CreateSubKey(
-                    @"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000"))
+                using (RegistryKey key = Registry.LocalMachine.CreateSubKey(REG_PATH_GPU))
                 {
                     if (key != null)
                     {
-                        key.SetValue("ProcessorId", processorId?.ToString() ?? string.Empty, RegistryValueKind.String);
+                        key.SetValue(PROP_PROCESSOR_ID, processorId?.ToString() ?? string.Empty, RegistryValueKind.String);
                         Console.WriteLine("CPU ID restored successfully.");
                     }
                 }
@@ -724,8 +726,7 @@ namespace StealthSpoof.Core
             Logger.Instance.Debug("Restoring Motherboard information");
             if (backupData.TryGetValue("Motherboard", out var motherboardInfo))
             {
-                using (RegistryKey key = Registry.LocalMachine.CreateSubKey(
-                    @"SYSTEM\CurrentControlSet\Control\SystemInformation"))
+                using (RegistryKey key = Registry.LocalMachine.CreateSubKey(REG_PATH_SYSTEM_INFO))
                 {
                     if (key != null)
                     {
@@ -758,8 +759,7 @@ namespace StealthSpoof.Core
             Logger.Instance.Debug("Restoring GPU information");
             if (backupData.TryGetValue("GPU", out var gpuInfo))
             {
-                using (RegistryKey key = Registry.LocalMachine.CreateSubKey(
-                    @"SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0000"))
+                using (RegistryKey key = Registry.LocalMachine.CreateSubKey(REG_PATH_GPU))
                 {
                     if (key != null)
                     {
