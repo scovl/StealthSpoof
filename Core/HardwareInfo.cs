@@ -13,6 +13,20 @@ namespace StealthSpoof.Core
 {
     public static class HardwareInfo
     {
+        // Constants for WMI property names
+        private const string PROP_NAME = "Name";
+        private const string PROP_MANUFACTURER = "Manufacturer";
+        private const string PROP_PROCESSOR_ID = "ProcessorId";
+        private const string PROP_SERIAL_NUMBER = "SerialNumber";
+        private const string PROP_PRODUCT = "Product";
+        private const string PROP_VERSION = "Version";
+        private const string PROP_MODEL = "Model";
+        private const string PROP_ADAPTER_RAM = "AdapterRAM";
+        private const string PROP_DRIVER_VERSION = "DriverVersion";
+        private const string PROP_CAPACITY = "Capacity";
+        private const string PROP_DEVICE_LOCATOR = "DeviceLocator";
+        private const string PROP_SIZE = "Size";
+
         public static void ShowCurrentHardwareInfo()
         {
             Console.ForegroundColor = ConsoleColor.Green;
@@ -27,9 +41,9 @@ namespace StealthSpoof.Core
                 {
                     foreach (var obj in searcher.Get())
                     {
-                        Console.WriteLine($"CPU: {obj["Name"]}");
-                        Console.WriteLine($"ID: {obj["ProcessorId"]}");
-                        Console.WriteLine($"Manufacturer: {obj["Manufacturer"]}");
+                        Console.WriteLine($"CPU: {obj[PROP_NAME]}");
+                        Console.WriteLine($"ID: {obj[PROP_PROCESSOR_ID]}");
+                        Console.WriteLine($"Manufacturer: {obj[PROP_MANUFACTURER]}");
                     }
                 }
                 
@@ -39,9 +53,9 @@ namespace StealthSpoof.Core
                 {
                     foreach (var obj in searcher.Get())
                     {
-                        Console.WriteLine($"Manufacturer: {obj["Manufacturer"]}");
-                        Console.WriteLine($"Model: {obj["Product"]}");
-                        Console.WriteLine($"Serial: {obj["SerialNumber"]}");
+                        Console.WriteLine($"Manufacturer: {obj[PROP_MANUFACTURER]}");
+                        Console.WriteLine($"Model: {obj[PROP_PRODUCT]}");
+                        Console.WriteLine($"Serial: {obj[PROP_SERIAL_NUMBER]}");
                     }
                 }
                 
@@ -51,9 +65,9 @@ namespace StealthSpoof.Core
                 {
                     foreach (var obj in searcher.Get())
                     {
-                        Console.WriteLine($"Manufacturer: {obj["Manufacturer"]}");
-                        Console.WriteLine($"Version: {obj["Version"]}");
-                        Console.WriteLine($"Serial: {obj["SerialNumber"]}");
+                        Console.WriteLine($"Manufacturer: {obj[PROP_MANUFACTURER]}");
+                        Console.WriteLine($"Version: {obj[PROP_VERSION]}");
+                        Console.WriteLine($"Serial: {obj[PROP_SERIAL_NUMBER]}");
                     }
                 }
                 
@@ -63,9 +77,9 @@ namespace StealthSpoof.Core
                 {
                     foreach (var obj in searcher.Get())
                     {
-                        Console.WriteLine($"Model: {obj["Model"]}");
-                        Console.WriteLine($"Serial: {obj["SerialNumber"]}");
-                        Console.WriteLine($"Size: {Convert.ToInt64(obj["Size"]) / 1073741824} GB");
+                        Console.WriteLine($"Model: {obj[PROP_MODEL]}");
+                        Console.WriteLine($"Serial: {obj[PROP_SERIAL_NUMBER]}");
+                        Console.WriteLine($"Size: {Convert.ToInt64(obj[PROP_SIZE]) / 1073741824} GB");
                         Console.WriteLine("---");
                     }
                 }
@@ -76,9 +90,9 @@ namespace StealthSpoof.Core
                 {
                     foreach (var obj in searcher.Get())
                     {
-                        Console.WriteLine($"GPU: {obj["Name"]}");
-                        Console.WriteLine($"Adapter RAM: {Convert.ToInt64(obj["AdapterRAM"]) / 1048576} MB");
-                        Console.WriteLine($"Driver Version: {obj["DriverVersion"]}");
+                        Console.WriteLine($"GPU: {obj[PROP_NAME]}");
+                        Console.WriteLine($"Adapter RAM: {Convert.ToInt64(obj[PROP_ADAPTER_RAM]) / 1048576} MB");
+                        Console.WriteLine($"Driver Version: {obj[PROP_DRIVER_VERSION]}");
                         Console.WriteLine("---");
                     }
                 }
@@ -105,13 +119,13 @@ namespace StealthSpoof.Core
                 {
                     foreach (var obj in searcher.Get())
                     {
-                        ulong capacity = Convert.ToUInt64(obj["Capacity"]);
+                        ulong capacity = Convert.ToUInt64(obj[PROP_CAPACITY]);
                         totalMemory += capacity;
                         
-                        Console.WriteLine($"Manufacturer: {obj["Manufacturer"]}");
+                        Console.WriteLine($"Manufacturer: {obj[PROP_MANUFACTURER]}");
                         Console.WriteLine($"Capacity: {capacity / 1048576} MB");
-                        Console.WriteLine($"Serial: {obj["SerialNumber"]}");
-                        Console.WriteLine($"Slot: {obj["DeviceLocator"]}");
+                        Console.WriteLine($"Serial: {obj[PROP_SERIAL_NUMBER]}");
+                        Console.WriteLine($"Slot: {obj[PROP_DEVICE_LOCATOR]}");
                         Console.WriteLine("---");
                     }
                 }
