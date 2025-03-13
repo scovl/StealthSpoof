@@ -271,19 +271,17 @@ namespace StealthSpoof.Core
                 
                 // MAC Address Backup
                 var macInfo = new Dictionary<string, object>();
-                foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
+                foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces()
+                    .Where(n => n.NetworkInterfaceType != NetworkInterfaceType.Loopback && 
+                                n.OperationalStatus == OperationalStatus.Up))
                 {
-                    if (nic.NetworkInterfaceType != NetworkInterfaceType.Loopback && 
-                        nic.OperationalStatus == OperationalStatus.Up)
+                    string mac = BitConverter.ToString(nic.GetPhysicalAddress().GetAddressBytes()).Replace("-", ":");
+                    if (!string.IsNullOrEmpty(mac) && mac != "00:00:00:00:00:00")
                     {
-                        string mac = BitConverter.ToString(nic.GetPhysicalAddress().GetAddressBytes()).Replace("-", ":");
-                        if (!string.IsNullOrEmpty(mac) && mac != "00:00:00:00:00:00")
+                        string registryId = GetNetworkAdapterId(nic.Description);
+                        if (!string.IsNullOrEmpty(registryId))
                         {
-                            string registryId = GetNetworkAdapterId(nic.Description);
-                            if (!string.IsNullOrEmpty(registryId))
-                            {
-                                macInfo[registryId] = mac;
-                            }
+                            macInfo[registryId] = mac;
                         }
                     }
                 }
@@ -924,29 +922,26 @@ namespace StealthSpoof.Core
                             {
                                 if (port != null)
                                 {
-                                    foreach (string busName in port.GetSubKeyNames())
+                                    foreach (string busName in port.GetSubKeyNames().Where(name => name.StartsWith("Scsi Bus")))
                                     {
-                                        if (busName.StartsWith("Scsi Bus"))
+                                        using (RegistryKey? bus = port.OpenSubKey(busName, true))
                                         {
-                                            using (RegistryKey? bus = port.OpenSubKey(busName, true))
+                                            if (bus != null)
                                             {
-                                                if (bus != null)
+                                                foreach (string targetName in bus.GetSubKeyNames())
                                                 {
-                                                    foreach (string targetName in bus.GetSubKeyNames())
+                                                    using (RegistryKey? target = bus.OpenSubKey(targetName, true))
                                                     {
-                                                        using (RegistryKey? target = bus.OpenSubKey(targetName, true))
+                                                        if (target != null)
                                                         {
-                                                            if (target != null)
+                                                            foreach (string lun in target.GetSubKeyNames())
                                                             {
-                                                                foreach (string lun in target.GetSubKeyNames())
+                                                                using (RegistryKey? lunKey = target.OpenSubKey(lun, true))
                                                                 {
-                                                                    using (RegistryKey? lunKey = target.OpenSubKey(lun, true))
+                                                                    if (lunKey != null)
                                                                     {
-                                                                        if (lunKey != null)
-                                                                        {
-                                                                            lunKey.SetValue("Identifier", HardwareInfo.GetRandomHardwareID(20), RegistryValueKind.String);
-                                                                            lunKey.SetValue("SerialNumber", HardwareInfo.GetRandomHardwareID(16), RegistryValueKind.String);
-                                                                        }
+                                                                        lunKey.SetValue("Identifier", HardwareInfo.GetRandomHardwareID(20), RegistryValueKind.String);
+                                                                        lunKey.SetValue("SerialNumber", HardwareInfo.GetRandomHardwareID(16), RegistryValueKind.String);
                                                                     }
                                                                 }
                                                             }
@@ -1240,16 +1235,13 @@ namespace StealthSpoof.Core
                 
                 // Display network adapter information
                 Console.WriteLine("\n--- Network Adapters ---");
-                foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
+                foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces().Where(n => n.NetworkInterfaceType != NetworkInterfaceType.Loopback))
                 {
-                    if (nic.NetworkInterfaceType != NetworkInterfaceType.Loopback)
-                    {
-                        Console.WriteLine($"Name: {nic.Name}");
-                        Console.WriteLine($"Description: {nic.Description}");
-                        Console.WriteLine($"MAC Address: {BitConverter.ToString(nic.GetPhysicalAddress().GetAddressBytes()).Replace("-", ":")}");
-                        Console.WriteLine($"Status: {nic.OperationalStatus}");
-                        Console.WriteLine("---");
-                    }
+                    Console.WriteLine($"Name: {nic.Name}");
+                    Console.WriteLine($"Description: {nic.Description}");
+                    Console.WriteLine($"MAC Address: {BitConverter.ToString(nic.GetPhysicalAddress().GetAddressBytes()).Replace("-", ":")}");
+                    Console.WriteLine($"Status: {nic.OperationalStatus}");
+                    Console.WriteLine("---");
                 }
                 
                 Logger.Instance.Info("System data display completed");
