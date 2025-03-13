@@ -3,6 +3,12 @@ using System.Management;
 using System.Net.NetworkInformation;
 using System.Collections.Generic;
 
+/*
+    This class is responsible for showing the current hardware information of the computer.
+    It is used to show the user the current hardware information of the computer.
+    It is also used to show the user the current hardware information of the computer to avoid detection by antivirus software.
+*/
+
 namespace StealthSpoof.Core
 {
     public static class HardwareInfo
@@ -33,8 +39,8 @@ namespace StealthSpoof.Core
                 {
                     foreach (var obj in searcher.Get())
                     {
-                        Console.WriteLine($"Fabricante: {obj["Manufacturer"]}");
-                        Console.WriteLine($"Modelo: {obj["Product"]}");
+                        Console.WriteLine($"Manufacturer: {obj["Manufacturer"]}");
+                        Console.WriteLine($"Model: {obj["Product"]}");
                         Console.WriteLine($"Serial: {obj["SerialNumber"]}");
                     }
                 }
