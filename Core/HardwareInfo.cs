@@ -2,6 +2,7 @@ using System;
 using System.Management;
 using System.Net.NetworkInformation;
 using System.Collections.Generic;
+using System.Linq;
 
 /*
     This class is responsible for showing the current hardware information of the computer.
@@ -99,17 +100,20 @@ namespace StealthSpoof.Core
                 
                 // Network Adapters
                 Console.WriteLine("\n[Network Adapters]");
-                foreach (NetworkInterface nic in NetworkInterface.GetAllNetworkInterfaces())
+                var validNics = NetworkInterface.GetAllNetworkInterfaces()
+                    .Where(n => {
+                        string mac = BitConverter.ToString(n.GetPhysicalAddress().GetAddressBytes()).Replace("-", ":");
+                        return !string.IsNullOrEmpty(mac) && mac != "00:00:00:00:00:00";
+                    });
+                
+                foreach (NetworkInterface nic in validNics)
                 {
                     string mac = BitConverter.ToString(nic.GetPhysicalAddress().GetAddressBytes()).Replace("-", ":");
-                    if (!string.IsNullOrEmpty(mac) && mac != "00:00:00:00:00:00")
-                    {
-                        Console.WriteLine($"Adapter: {nic.Description}");
-                        Console.WriteLine($"Name: {nic.Name}");
-                        Console.WriteLine($"MAC: {mac}");
-                        Console.WriteLine($"Status: {nic.OperationalStatus}");
-                        Console.WriteLine("---");
-                    }
+                    Console.WriteLine($"Adapter: {nic.Description}");
+                    Console.WriteLine($"Name: {nic.Name}");
+                    Console.WriteLine($"MAC: {mac}");
+                    Console.WriteLine($"Status: {nic.OperationalStatus}");
+                    Console.WriteLine("---");
                 }
                 
                 // RAM Info
