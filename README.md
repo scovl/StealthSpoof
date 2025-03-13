@@ -27,6 +27,59 @@ StealthSpoof is a C# application that allows users to modify hardware identifier
 - .NET 6.0 or higher
 - Administrator privileges (required for registry modifications)
 
+## Building and Running
+
+### Prerequisites
+- [.NET 6.0 SDK](https://dotnet.microsoft.com/download/dotnet/6.0) or higher
+- Visual Studio 2022 (recommended) or any text editor
+- Git (optional, for cloning the repository)
+
+### Building from Source
+
+#### Using Command Line
+1. Clone or download the repository:
+   ```
+   git clone https://github.com/yourusername/StealthSpoof.git
+   cd StealthSpoof
+   ```
+
+2. Build the project:
+   ```
+   dotnet build
+   ```
+
+3. Run the application:
+   ```
+   dotnet run
+   ```
+
+#### Using Visual Studio
+1. Open the solution file (`StealthSpoof.sln`) in Visual Studio
+2. Build the solution by pressing `Ctrl+Shift+B` or selecting `Build > Build Solution` from the menu
+3. Run the application by pressing `F5` or selecting `Debug > Start Debugging`
+
+### Running the Application
+
+1. Make sure to run the application with administrator privileges:
+   - If using the command line, open a command prompt as administrator before running `dotnet run`
+   - If using Visual Studio, right-click on Visual Studio and select "Run as administrator" before opening the project
+
+2. Once the application starts, you'll see the main menu with various options:
+   - Option 1: View current hardware information
+   - Option 2: Spoof all hardware identifiers
+   - Option 3: Restore original settings
+   - Option 4: Advanced options (for specific component spoofing)
+   - Option 5: Diagnostics
+   - Option 0: Exit
+
+3. Follow the on-screen instructions to navigate through the menus and perform the desired operations
+
+### Troubleshooting
+
+- If you encounter "Access denied" errors, ensure you're running the application as administrator
+- Check the logs located in `%APPDATA%\StealthSpoof\logs` for detailed error information
+- Make sure all prerequisites are installed correctly, especially the .NET 6.0 SDK
+
 ## Usage
 
 1. Run the application as Administrator (required for hardware modifications)
