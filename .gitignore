@@ -1,0 +1,26 @@
+# csharp
+
+
+*.json
+*.txt
+*.log
+*.md
+*.html
+*.css
+*.js
+*.php
+
+.vscode/
+.wsuo
+*.dll
+slnx.qlite
+
+obj/
+bin/
+
+*.exe
+*.bat
+*.sh
+*.ps1
+
+*.vsidx
