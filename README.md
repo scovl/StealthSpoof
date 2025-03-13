@@ -39,7 +39,7 @@ StealthSpoof is a C# application that allows users to modify hardware identifier
 #### Using Command Line
 1. Clone or download the repository:
    ```
-   git clone https://github.com/yourusername/StealthSpoof.git
+   git clone https://github.com/scovl/StealthSpoof.git
    cd StealthSpoof
    ```
 
