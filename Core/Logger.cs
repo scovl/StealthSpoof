@@ -132,7 +132,7 @@ namespace StealthSpoof.Core
                 var fileInfo = new FileInfo(_logFilePath);
                 if (fileInfo.Exists && fileInfo.Length > maxSizeBytes)
                 {
-                    // Criar arquivo de backup
+                    // Create backup file
                     string backupPath = Path.Combine(
                         Path.GetDirectoryName(_logFilePath) ?? string.Empty,
                         $"StealthSpoof_{DateTime.Now:yyyy-MM-dd_HH-mm-ss}.log.bak"
@@ -140,7 +140,7 @@ namespace StealthSpoof.Core
                     
                     File.Move(_logFilePath, backupPath);
                     
-                    // Criar novo arquivo de log
+                    // Create new log file
                     Log(LogLevel.Info, $"Log file rotated. Previous log saved to {backupPath}");
                 }
             }
