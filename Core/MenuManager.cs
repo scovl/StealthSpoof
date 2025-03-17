@@ -3,14 +3,14 @@ using System;
 namespace StealthSpoof.Core
 {
     /// <summary>
-    /// Classe responsável por gerenciar os menus da aplicação
+    /// Class responsible for managing the application menus
     /// </summary>
     public static class MenuManager
     {
         /// <summary>
-        /// Exibe o menu principal e processa a opção escolhida
+        /// Displays the main menu and processes the selected option
         /// </summary>
-        /// <returns>True para continuar, False para sair</returns>
+        /// <returns>True to continue, False to exit</returns>
         public static bool DisplayMainMenu()
         {
             Console.WriteLine("\nChoose an option:");
@@ -29,10 +29,10 @@ namespace StealthSpoof.Core
         }
         
         /// <summary>
-        /// Processa a opção escolhida no menu principal
+        /// Processes the selected option in the main menu
         /// </summary>
-        /// <param name="input">A opção escolhida</param>
-        /// <returns>True para continuar, False para sair</returns>
+        /// <param name="input">The selected option</param>
+        /// <returns>True to continue, False to exit</returns>
         private static bool ProcessMainMenuOption(string? input)
         {
             switch (input)
@@ -64,7 +64,7 @@ namespace StealthSpoof.Core
         }
         
         /// <summary>
-        /// Exibe o menu de opções avançadas
+        /// Displays the advanced options menu
         /// </summary>
         public static void DisplayAdvancedMenu()
         {
@@ -91,9 +91,9 @@ namespace StealthSpoof.Core
         }
         
         /// <summary>
-        /// Processa a opção escolhida no menu de opções avançadas
+        /// Processes the selected option in the advanced options menu
         /// </summary>
-        /// <param name="input">A opção escolhida</param>
+        /// <param name="input">The selected option</param>
         private static void ProcessAdvancedMenuOption(string? input)
         {
             switch (input)
@@ -143,7 +143,7 @@ namespace StealthSpoof.Core
         }
         
         /// <summary>
-        /// Exibe o menu de diagnósticos
+        /// Displays the diagnostics menu
         /// </summary>
         public static void DisplayDiagnosticsMenu()
         {
