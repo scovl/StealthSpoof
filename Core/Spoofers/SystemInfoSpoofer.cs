@@ -2,6 +2,7 @@ using System;
 using Microsoft.Win32;
 using System.IO;
 using StealthSpoof.Core.Utils;
+using System.Linq;
 
 namespace StealthSpoof.Core.Spoofers
 {
@@ -259,49 +260,111 @@ namespace StealthSpoof.Core.Spoofers
         
         private static void ClearDirectory(string basePath, string dirName)
         {
+            if (string.IsNullOrEmpty(basePath) || string.IsNullOrEmpty(dirName))
+            {
+                Logger.Instance.Warning($"Invalid parameters for ClearDirectory: basePath={basePath}, dirName={dirName}");
+                return;
+            }
+            
             string fullPath = Path.Combine(basePath, dirName);
             
-            if (Directory.Exists(fullPath))
+            if (!Directory.Exists(fullPath))
             {
-                try
-                {
-                    DirectoryInfo di = new DirectoryInfo(fullPath);
-                    
-                    foreach (FileInfo file in di.GetFiles())
-                    {
-                        try
-                        {
-                            file.Delete();
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.Instance.Warning($"Could not delete file {file.FullName}: {ex.Message}");
-                        }
-                    }
-                    
-                    foreach (DirectoryInfo dir in di.GetDirectories())
-                    {
-                        try
-                        {
-                            dir.Delete(true);
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.Instance.Warning($"Could not delete directory {dir.FullName}: {ex.Message}");
-                        }
-                    }
-                    
-                    Console.WriteLine($"Cleared {fullPath}");
-                }
-                catch (Exception ex)
-                {
-                    Logger.Instance.Warning($"Error clearing directory {fullPath}: {ex.Message}");
-                    Console.WriteLine($"Error clearing {fullPath}: {ex.Message}");
-                }
-            }
-            else
-            {
+                Logger.Instance.Info($"Directory not found, skipping: {fullPath}");
                 Console.WriteLine($"Directory not found: {fullPath}");
+                return;
+            }
+            
+            Logger.Instance.Info($"Clearing directory contents: {fullPath}");
+            
+            try
+            {
+                int filesDeleted = 0;
+                int directoriesDeleted = 0;
+                int fileErrors = 0;
+                int dirErrors = 0;
+                
+                DirectoryInfo di = new DirectoryInfo(fullPath);
+                
+                // Delete files first
+                foreach (FileInfo file in di.GetFiles("*", SearchOption.AllDirectories))
+                {
+                    try
+                    {
+                        file.Delete();
+                        filesDeleted++;
+                    }
+                    catch (IOException ex)
+                    {
+                        // File is likely in use
+                        Logger.Instance.Warning($"File in use, cannot delete {file.FullName}: {ex.Message}");
+                        fileErrors++;
+                    }
+                    catch (UnauthorizedAccessException ex)
+                    {
+                        Logger.Instance.Warning($"Access denied to file {file.FullName}: {ex.Message}");
+                        fileErrors++;
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Instance.LogException(ex, $"Failed to delete file: {file.FullName}");
+                        fileErrors++;
+                    }
+                }
+                
+                // Delete directories (starting from deepest)
+                DirectoryInfo[] directories = di.GetDirectories("*", SearchOption.AllDirectories);
+                foreach (DirectoryInfo dir in directories.OrderByDescending(d => d.FullName.Length))
+                {
+                    try
+                    {
+                        dir.Delete(false); // Only delete if empty (we already deleted files)
+                        directoriesDeleted++;
+                    }
+                    catch (IOException ex)
+                    {
+                        // Directory likely contains other files or is in use
+                        Logger.Instance.Warning($"Directory not empty or in use {dir.FullName}: {ex.Message}");
+                        dirErrors++;
+                    }
+                    catch (UnauthorizedAccessException ex)
+                    {
+                        Logger.Instance.Warning($"Access denied to directory {dir.FullName}: {ex.Message}");
+                        dirErrors++;
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Instance.LogException(ex, $"Failed to delete directory: {dir.FullName}");
+                        dirErrors++;
+                    }
+                }
+                
+                Logger.Instance.Info($"Cleared {filesDeleted} files and {directoriesDeleted} directories from {fullPath}. Errors: {fileErrors} file errors, {dirErrors} directory errors");
+                
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine($"Cleared {fullPath} ({filesDeleted} files, {directoriesDeleted} directories)");
+                
+                if (fileErrors > 0 || dirErrors > 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine($"  Note: Some items could not be deleted ({fileErrors + dirErrors} errors)");
+                }
+                
+                Console.ResetColor();
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                Logger.Instance.LogException(ex, $"Access denied to directory: {fullPath}");
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"Warning: Access denied to directory {fullPath}. Run as administrator for full access.");
+                Console.ResetColor();
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.LogException(ex, $"Error clearing directory {fullPath}");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Error clearing {fullPath}: {ex.Message}");
+                Console.ResetColor();
             }
         }
     }
