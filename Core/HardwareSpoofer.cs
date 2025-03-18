@@ -42,6 +42,7 @@ namespace StealthSpoof.Core
                 BackupManager.BackupOriginalValues();
                 SpoofAllHardware();
                 SystemInfoSpoofer.SpoofPCName();
+                NetworkSpoofer.SpoofNetworkConfig();
                 SystemInfoSpoofer.SpoofInstallationID();
                 SystemInfoSpoofer.SpoofExtendedGUIDs();
                 MotherboardSpoofer.SpoofEFIVariableId();
@@ -217,6 +218,14 @@ namespace StealthSpoof.Core
         public static void SpoofSMBIOSSerialNumber()
         {
             MotherboardSpoofer.SpoofSMBIOSSerialNumber();
+        }
+        
+        /// <summary>
+        /// Realizes the spoofing of network configuration (hostname, workgroup)
+        /// </summary>
+        public static void SpoofNetworkConfig()
+        {
+            NetworkSpoofer.SpoofNetworkConfig();
         }
     }
 } 
