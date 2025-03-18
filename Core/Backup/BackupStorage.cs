@@ -44,45 +44,67 @@ namespace StealthSpoof.Core.Backup
             }
         }
         
-        public string SaveBackup(Dictionary<string, Dictionary<string, object>> backupData)
+        public bool SaveBackup(Dictionary<string, Dictionary<string, object>> backupData)
         {
-            string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
-            string backupPath = Path.Combine(_backupDir, $"{BACKUP_PREFIX}{timestamp}{BACKUP_EXTENSION}");
-            string keyPath = Path.Combine(_keysDir, $"{BACKUP_PREFIX}{timestamp}{KEY_EXTENSION}");
-            
-            // Serialize to JSON
-            string json = System.Text.Json.JsonSerializer.Serialize(
-                backupData, 
-                new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
-            );
-            
-            // Compress and encrypt the data
-            using (var fileStream = File.Create(backupPath))
-            using (var gzipStream = new GZipStream(fileStream, CompressionMode.Compress))
-            using (var aes = Aes.Create())
+            try
             {
-                // Generate a random key and IV
-                aes.GenerateKey();
-                aes.GenerateIV();
-                
-                // Write the IV first (not encrypted)
-                fileStream.Write(aes.IV, 0, aes.IV.Length);
-                
-                // Save the key securely to a separate file
-                SaveEncryptionKey(keyPath, aes.Key);
-                
-                // Create encryptor and crypto stream
-                using (var encryptor = aes.CreateEncryptor())
-                using (var cryptoStream = new CryptoStream(gzipStream, encryptor, CryptoStreamMode.Write))
-                using (var writer = new StreamWriter(cryptoStream))
+                if (backupData == null || !backupData.Any())
                 {
-                    writer.Write(json);
+                    Logger.Instance.Error("Cannot save backup: Backup data is null or empty");
+                    return false;
                 }
+                
+                string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+                string backupPath = Path.Combine(_backupDir, $"{BACKUP_PREFIX}{timestamp}{BACKUP_EXTENSION}");
+                string keyPath = Path.Combine(_keysDir, $"{BACKUP_PREFIX}{timestamp}{KEY_EXTENSION}");
+                
+                // Serialize to JSON
+                string json = System.Text.Json.JsonSerializer.Serialize(
+                    backupData, 
+                    new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
+                );
+                
+                // Compress and encrypt the data
+                using (var fileStream = File.Create(backupPath))
+                using (var gzipStream = new GZipStream(fileStream, CompressionMode.Compress))
+                using (var aes = Aes.Create())
+                {
+                    // Generate a random key and IV
+                    aes.GenerateKey();
+                    aes.GenerateIV();
+                    
+                    // Write the IV first (not encrypted)
+                    fileStream.Write(aes.IV, 0, aes.IV.Length);
+                    
+                    // Save the key securely to a separate file
+                    try
+                    {
+                        SaveEncryptionKey(keyPath, aes.Key);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Instance.LogException(ex, "Failed to save encryption key");
+                        return false;
+                    }
+                    
+                    // Create encryptor and crypto stream
+                    using (var encryptor = aes.CreateEncryptor())
+                    using (var cryptoStream = new CryptoStream(gzipStream, encryptor, CryptoStreamMode.Write))
+                    using (var writer = new StreamWriter(cryptoStream))
+                    {
+                        writer.Write(json);
+                    }
+                }
+                
+                Logger.Instance.Info($"Backup saved to {backupPath} with secure key storage");
+                RotateBackups();
+                return true;
             }
-            
-            Logger.Instance.Info($"Backup saved to {backupPath} with secure key storage");
-            RotateBackups();
-            return backupPath;
+            catch (Exception ex)
+            {
+                Logger.Instance.LogException(ex, "Error saving backup");
+                return false;
+            }
         }
         
         /// <summary>
