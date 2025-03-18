@@ -27,6 +27,7 @@ namespace StealthSpoof.Core.Utils
         public const string REG_PATH_BIOS = @"HARDWARE\DESCRIPTION\System\BIOS";
         public const string REG_PATH_EFI_VARIABLES = @"SYSTEM\CurrentControlSet\Control\EFI\Variables";
         public const string REG_PATH_DISK_ENUM = @"SYSTEM\CurrentControlSet\Services\disk\Enum";
+        public const string REG_PATH_CPU = @"HARDWARE\DESCRIPTION\System\CentralProcessor\0";
         
         // Property name constants
         public const string PROP_PROCESSOR_ID = "ProcessorId";
@@ -35,6 +36,8 @@ namespace StealthSpoof.Core.Utils
         public const string PROP_BASEBOARD_PRODUCT = "BaseBoardProduct";
         public const string PROP_HARDWARE_ID = "HardwareID";
         public const string PROP_MEMORY_SIZE = "HardwareInformation.qwMemorySize";
+        public const string PROP_BASEBOARD_SERIAL = "BaseBoardSerialNumber";
+        public const string PROP_BIOS_SERIAL = "BIOSSerialNumber";
         
         /// <summary>
         /// Checks if the user has administrator privileges
