@@ -225,8 +225,15 @@ namespace StealthSpoof.Core.Backup
                         }
                     }
                 }
+                
+                // Log when no adapter with matching description is found
+                Logger.Instance.Debug($"No network adapter found with description: {adapterDescription}");
             }
-            catch { /* Ignore errors */ }
+            catch (Exception ex)
+            {
+                // Log the exception instead of silently ignoring it
+                Logger.Instance.LogException(ex, $"Error retrieving network adapter ID for: {adapterDescription}");
+            }
             
             return string.Empty;
         }
