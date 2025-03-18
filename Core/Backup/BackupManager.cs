@@ -31,25 +31,69 @@ namespace StealthSpoof.Core.Backup
             try
             {
                 Logger.Instance.Info("Starting backup of original hardware values");
+                Console.WriteLine("Creating backup of original hardware values...");
                 
                 // Collect current hardware information
                 var hardwareInfo = BackupCollector.CollectHardwareInfo();
+                if (hardwareInfo == null || !hardwareInfo.Any())
+                {
+                    Logger.Instance.Error("Failed to collect hardware information for backup");
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Error: Failed to collect hardware information for backup");
+                    Console.ResetColor();
+                    return;
+                }
+                
+                Logger.Instance.Debug($"Collected {hardwareInfo.Count} hardware information items");
                 
                 // Set backup metadata
                 _metadata.SetIncremental(false);
                 
                 // Calculate checksum
-                string checksum = BackupValidator.CalculateChecksum(JsonSerializer.Serialize(hardwareInfo));
+                string serializedData = JsonSerializer.Serialize(hardwareInfo);
+                string checksum = BackupValidator.CalculateChecksum(serializedData);
                 _metadata.SetChecksum(checksum);
                 
+                Logger.Instance.Debug($"Backup checksum calculated: {checksum.Substring(0, 8)}...");
+                
                 // Save backup
-                _storage.SaveBackup(hardwareInfo);
+                bool saveSuccess = _storage.SaveBackup(hardwareInfo);
+                if (!saveSuccess)
+                {
+                    Logger.Instance.Error("Failed to save backup");
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Error: Could not save backup");
+                    Console.ResetColor();
+                    return;
+                }
                 
                 Logger.Instance.Info("Original hardware values backup completed successfully");
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("Backup created successfully");
+                Console.ResetColor();
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                Logger.Instance.LogException(ex, "Access denied while creating backup");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Access denied while creating backup: {ex.Message}");
+                Console.WriteLine("Try running the application as administrator");
+                Console.ResetColor();
+            }
+            catch (IOException ex)
+            {
+                Logger.Instance.LogException(ex, "I/O error while creating backup");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"I/O error while creating backup: {ex.Message}");
+                Console.WriteLine("Check if you have write access to the backup directory");
+                Console.ResetColor();
             }
             catch (Exception ex)
             {
-                Logger.Instance.Error($"Failed to backup original hardware values: {ex.Message}");
+                Logger.Instance.LogException(ex, "Failed to backup original hardware values");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Failed to backup original hardware values: {ex.Message}");
+                Console.ResetColor();
             }
         }
         
@@ -58,41 +102,95 @@ namespace StealthSpoof.Core.Backup
         /// </summary>
         public static void RestoreOriginal()
         {
+            if (!RegistryHelper.RequireAdminCheck())
+            {
+                Logger.Instance.Warning("Cannot restore original values - administrative privileges required");
+                return;
+            }
+            
             try
             {
                 Logger.Instance.Info("Starting restore of original hardware values");
+                Console.WriteLine("Restoring original hardware values...");
                 
                 // Get latest backup
                 var latestBackup = _storage.GetLatestBackup();
                 if (latestBackup == null)
                 {
                     Logger.Instance.Error("No backup found to restore from");
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Error: No backup found to restore from");
+                    Console.ResetColor();
                     return;
                 }
+                
+                Logger.Instance.Debug($"Found backup file: {latestBackup}");
                 
                 // Validate backup integrity
                 if (!BackupValidator.ValidateBackupIntegrity(latestBackup, _storage))
                 {
-                    Logger.Instance.Error("Backup validation failed");
+                    Logger.Instance.Error("Backup validation failed, backup may be corrupted");
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Error: Backup validation failed, backup may be corrupted");
+                    Console.ResetColor();
                     return;
                 }
+                
+                Logger.Instance.Debug("Backup validation passed");
                 
                 // Load backup data
                 var backupData = BackupStorage.LoadBackup(latestBackup);
-                if (backupData == null)
+                if (backupData == null || !backupData.Any())
                 {
                     Logger.Instance.Error("Failed to load backup data");
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("Error: Failed to load backup data");
+                    Console.ResetColor();
                     return;
                 }
                 
-                // Restore hardware information
-                BackupRestorer.RestoreHardwareInfo(backupData);
+                Logger.Instance.Debug($"Loaded {backupData.Count} hardware information items from backup");
                 
-                Logger.Instance.Info("Original hardware values restored successfully");
+                // Restore hardware information
+                int restoredCount = BackupRestorer.RestoreHardwareInfo(backupData);
+                
+                if (restoredCount > 0)
+                {
+                    Logger.Instance.Info($"Original hardware values restored successfully ({restoredCount} items)");
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine($"Original hardware values restored successfully ({restoredCount} items)");
+                    Console.WriteLine("It may be necessary to restart the computer to apply all changes.");
+                    Console.ResetColor();
+                }
+                else
+                {
+                    Logger.Instance.Warning("No hardware values were restored");
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("No hardware values were restored");
+                    Console.ResetColor();
+                }
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                Logger.Instance.LogException(ex, "Access denied while restoring original values");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Access denied while restoring original values: {ex.Message}");
+                Console.WriteLine("Try running the application as administrator");
+                Console.ResetColor();
+            }
+            catch (IOException ex)
+            {
+                Logger.Instance.LogException(ex, "I/O error while restoring original values");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"I/O error while restoring original values: {ex.Message}");
+                Console.ResetColor();
             }
             catch (Exception ex)
             {
-                Logger.Instance.Error($"Failed to restore original hardware values: {ex.Message}");
+                Logger.Instance.LogException(ex, "Failed to restore original hardware values");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"Failed to restore original hardware values: {ex.Message}");
+                Console.ResetColor();
             }
         }
         
